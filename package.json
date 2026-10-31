@@ -1,0 +1,46 @@
+{
+  "name": "@riagraph/core",
+  "version": "0.0.1",
+  "description": "An in-process property graph database management system built for query speed and scalability.",
+  "main": "index.js",
+  "module": "./index.mjs",
+  "types": "./riag.d.ts",
+  "exports": {
+    ".": {
+      "require": "./index.js",
+      "import": "./index.mjs",
+      "types": "./riag.d.ts"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.mjs",
+    "riag.d.ts",
+    "riagjs.node"
+  ],
+  "type": "commonjs",
+  "homepage": "https://github.com/cntSafety/RiaGraph",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cntSafety/RiaGraph.git"
+  },
+  "scripts": {
+    "test": "mocha test --timeout 20000",
+    "clean": "node clean.js",
+    "clean-all": "node clean.js all",
+    "build": "node build.js",
+    "prepublishOnly": "npm run build"
+  },
+  "author": "RiaGraph Team",
+  "license": "MIT",
+  "devDependencies": {
+    "chai": "^4.4.1",
+    "mocha": "^10.4.0",
+    "tmp": "^0.2.3"
+  },
+  "dependencies": {
+    "apache-arrow": "^21.1.0",
+    "cmake-js": "^8.0.0",
+    "node-addon-api": "^6.0.0"
+  }
+}

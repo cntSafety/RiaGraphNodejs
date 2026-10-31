@@ -1,0 +1,83 @@
+global.chai = require("chai");
+global.assert = chai.assert;
+global.expect = chai.expect;
+chai.should();
+chai.config.includeStack = true;
+
+const TEST_INSTALLED = process.env.TEST_INSTALLED || false;
+if (TEST_INSTALLED) {
+  global.riag = require("riag");
+  global.riagPath = require.resolve("riag");
+  console.log("Testing installed version @", riagPath);
+} else {
+  global.riag = require("../build/");
+  global.riagPath = require.resolve("../build/");
+  console.log("Testing locally built version @", riagPath);
+}
+
+const tmp = require("tmp");
+const fs = require("fs/promises");
+const path = require("path");
+
+const toCypherPath = (filePath) => filePath.replace(/\\/g, "/");
+
+const initTests = async () => {
+  const tmpPath = await new Promise((resolve, reject) => {
+    tmp.dir({ unsafeCleanup: true }, (err, path, _) => {
+      if (err) {
+        return reject(err);
+      }
+      return resolve(path);
+    });
+  });
+
+  const dbPath = path.join(tmpPath, "db.lbdb");
+  const db = new riag.Database(dbPath, 1 << 28 /* 256MB */);
+  const conn = new riag.Connection(db, 4);
+  const datasetDir = path.resolve(__dirname, "..", "dataset");
+  const tinysnbDir = path.join(datasetDir, "tinysnb") + path.sep;
+  const tinysnbSerialDir = path.join(datasetDir, "tinysnb-serial") + path.sep;
+  const cypherTinysnbDir = toCypherPath(tinysnbDir);
+  const cypherTinysnbSerialDir = toCypherPath(tinysnbSerialDir);
+
+  const schema = (await fs.readFile(tinysnbDir + "schema.cypher"))
+    .toString()
+    .split("\n");
+  for (const line of schema) {
+    if (line.trim().length === 0) {
+      continue;
+    }
+    await conn.query(line);
+  }
+
+  const copy = (await fs.readFile(tinysnbDir + "copy.cypher"))
+    .toString()
+    .split("\n");
+
+  const dataFileExtension = ["csv", "parquet", "npy", "ttl", "nq", "json", "riag_extension"];
+  const dataFileRegex = new RegExp(`"([^"]+\\.(${dataFileExtension.join('|')}))"`, "gi");
+
+  for (const line of copy) {
+    if (!line || line.trim().length === 0) {
+        continue;
+    }
+
+    // handle multiple data files in one line
+    const statement = line.replace(dataFileRegex, `"${cypherTinysnbDir}$1"`);
+
+    await conn.query(statement);
+  }
+
+  await conn.query(
+    "create node table moviesSerial (ID SERIAL, name STRING, length INT32, note STRING, PRIMARY KEY (ID))"
+  );
+  await conn.query(
+    `copy moviesSerial from "${cypherTinysnbSerialDir}vMovies.csv"`
+  );
+
+  global.dbPath = dbPath;
+  global.db = db;
+  global.conn = conn;
+};
+
+global.initTests = initTests;
